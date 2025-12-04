@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON ↔ HTML Table 雙向轉換工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <!-- 引入 SheetJS 庫用於生成 Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            flex: 1;
+            min-width: 350px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .panel-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            flex: 1;
+            padding: 0;
+            overflow: auto;
+        }
+        
+        .editor-container {
+            height: 500px;
+            width: 100%;
+        }
+        
+        .CodeMirror {
+            height: 500px;
+            font-size: 14px;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .table-container {
+            padding: 20px;
+            overflow: auto;
+            max-height: 500px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th {
+            background-color: #2c3e50;
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+            font-weight: 600;
+            border-right: 1px solid #34495e;
+        }
+        
+        th:last-child {
+            border-right: none;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        tr:hover {
+            background-color: #f1f8ff;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 180px;
+            justify-content: center;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        button#convertToTable {
+            background-color: #2ecc71;
+        }
+        
+        button#convertToTable:hover {
+            background-color: #27ae60;
+        }
+        
+        button#convertToJson {
+            background-color: #9b59b6;
+        }
+        
+        button#convertToJson:hover {
+            background-color: #8e44ad;
+        }
+        
+        button#reset {
+            background-color: #e74c3c;
+        }
+        
+        button#reset:hover {
+            background-color: #c0392b;
+        }
+        
+        button#downloadHtml {
+            background-color: #f39c12;
+        }
+        
+        button#downloadHtml:hover {
+            background-color: #d68910;
+        }
+        
+        button#downloadJson {
+            background-color: #16a085;
+        }
+        
+        button#downloadJson:hover {
+            background-color: #138d75;
+        }
+        
+        button#downloadExcel {
+            background-color: #1abc9c;
+        }
+        
+        button#downloadExcel:hover {
+            background-color: #16a085;
+        }
+        
+        button#importHtml {
+            background-color: #8e44ad;
+        }
+        
+        button#importHtml:hover {
+            background-color: #7d3c98;
+        }
+        
+        .instructions {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .instructions h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .instructions code {
+            background-color: #f1f2f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .error-message.show {
+            display: flex;
+        }
+        
+        .status-bar {
+            background-color: #ecf0f1;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .json-path {
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .panel {
+                min-width: 100%;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .control-group {
+                width: 100%;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+        }
+        
+        .object-cell {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .string-cell {
+            color: #27ae60;
+        }
+        
+        .null-cell {
+            color: #95a5a6;
+            font-style: italic;
+        }
+        
+        .boolean-cell {
+            color: #f39c12;
+            font-weight: 600;
+        }
+        
+        .number-cell {
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        .type-badge {
+            background-color: #ecf0f1;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #2c3e50;
+        }
+        
+        .export-options {
+            background-color: #e8f4fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .export-options h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .export-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .export-options input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+            background-color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .html-input-area {
+            padding: 20px;
+        }
+        
+        .html-input-area textarea {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        .html-input-area button {
+            width: 100%;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80%;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .modal-header h3 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #7f8c8d;
+            cursor: pointer;
+            min-width: auto;
+            padding: 0;
+        }
+        
+        .close-modal:hover {
+            color: #e74c3c;
+            background: none;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .modal-body textarea {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><i class="fas fa-exchange-alt"></i> JSON ↔ HTML Table 雙向轉換工具</h1>
+        <p class="subtitle">將複雜的JSON結構轉換為HTML表格，並可將HTML表格內容轉換回JSON格式</p>
+    </header>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-code"></i> JSON 編輯器</h2>
+                <span id="jsonStatus">有效 JSON</span>
+            </div>
+            <div class="panel-content">
+                <div class="editor-container">
+                    <textarea id="jsonEditor"></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-table"></i> HTML 表格</h2>
+                <span id="tableStatus">就緒</span>
+            </div>
+            <div class="panel-content">
+                <div class="tab-container">
+                    <div class="tab active" data-tab="preview">預覽</div>
+                    <div class="tab" data-tab="html-input">輸入 HTML</div>
+                </div>
+                
+                <div class="tab-content active" id="preview-tab">
+                    <div class="table-container" id="tableContainer">
+                        <p style="text-align: center; color: #7f8c8d; padding: 40px 20px;">
+                            點擊「轉換為 HTML 表格」按鈕以預覽 JSON 數據
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="html-input-tab">
+                    <div class="html-input-area">
+                        <h4>輸入 HTML 表格內容</h4>
+                        <p>請貼上完整的 HTML 表格代碼 (&lt;table&gt;...&lt;/table&gt;):</p>
+                        <textarea id="htmlInput" placeholder="<table>
+  <thead>
+    <tr>
+      <th>鍵 (Key)</th>
+      <th>值 (Value)</th>
+      <th>類型 (Type)</th>
+      <th>路徑 (Path)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>layout.header.primaryNav</td>
+      <td>主導覽</td>
+      <td>string</td>
+      <td>/layout/header/primaryNav/</td>
+    </tr>
+    <!-- 更多行... -->
+  </tbody>
+</table>"></textarea>
+                        <button id="parseHtmlToJson">
+                            <i class="fas fa-code"></i> 解析 HTML 並轉換為 JSON
+                        </button>
+                        <p style="font-size: 0.9rem; color: #7f8c8d; margin-top: 15px;">
+                            <i class="fas fa-info-circle"></i> 提示：請確保 HTML 表格包含正確的結構，包含鍵、值、類型和路徑列。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="error-message" id="errorMessage">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="errorText"></span>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <button id="convertToTable">
+                <i class="fas fa-arrow-right"></i> 轉換為 HTML 表格
+            </button>
+            <button id="convertToJson">
+                <i class="fas fa-arrow-left"></i> 表格轉回 JSON
+            </button>
+            <button id="importHtml">
+                <i class="fas fa-file-import"></i> 匯入 HTML 表格
+            </button>
+            <button id="reset">
+                <i class="fas fa-redo"></i> 重置為範例
+            </button>
+        </div>
+        <div class="control-group">
+            <button id="downloadHtml">
+                <i class="fas fa-file-code"></i> 下載 HTML
+            </button>
+            <button id="downloadJson">
+                <i class="fas fa-file-alt"></i> 下載 JSON
+            </button>
+            <button id="downloadExcel">
+                <i class="fas fa-file-excel"></i> 下載 Excel
+            </button>
+        </div>
+    </div>
+    
+    <div class="export-options" id="exportOptions" style="display: none;">
+        <h4><i class="fas fa-cog"></i> Excel 匯出選項</h4>
+        <label>
+            <input type="checkbox" id="includeMetadata" checked>
+            包含元數據（生成時間、路徑等）
+        </label>
+        <label>
+            <input type="checkbox" id="includeTypes" checked>
+            包含數據類型列
+        </label>
+        <label>
+            <input type="checkbox" id="includePaths" checked>
+            包含路徑列
+        </label>
+        <label>
+            <input type="checkbox" id="autoColumnWidth" checked>
+            自動調整列寬
+        </label>
+        <button id="applyExportOptions" style="padding: 8px 16px; margin-top: 10px; min-width: auto;">
+            <i class="fas fa-check"></i> 應用設置並下載
+        </button>
+    </div>
+    
+    <div class="status-bar">
+        <div>
+            當前路徑: <span id="currentPath" class="json-path">/</span>
+        </div>
+        <div>
+            條目數: <span id="itemCount">0</span>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3><i class="fas fa-info-circle"></i> 使用說明</h3>
+        <ul>
+            <li><strong>JSON 轉表格：</strong>編輯 JSON 數據，點擊「轉換為 HTML 表格」</li>
+            <li><strong>表格轉 JSON：</strong>點擊「表格轉回 JSON」將當前表格轉換為 JSON</li>
+            <li><strong>匯入 HTML：</strong>點擊「匯入 HTML 表格」貼上 HTML 表格代碼並轉換為 JSON</li>
+            <li><strong>直接輸入 HTML：</strong>在「輸入 HTML」選項卡中直接貼上表格代碼並解析</li>
+            <li><strong>下載功能：</strong>支援下載 HTML、JSON 和 Excel 格式</li>
+            <li><strong>重置：</strong>點擊「重置為範例」恢復到預設的範例 JSON</li>
+        </ul>
+        <p><strong>注意：</strong>HTML 表格轉回 JSON 時，需要表格包含正確的結構（鍵、值、類型、路徑列）。</p>
+    </div>
+    
+    <footer>
+        <p>JSON ↔ HTML Table 雙向轉換工具 &copy; 2023 | 支援複雜JSON結構雙向轉換</p>
+    </footer>
+    
+    <!-- HTML 輸入模態框 -->
+    <div class="modal" id="htmlImportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-import"></i> 匯入 HTML 表格</h3>
+                <button class="close-modal" id="closeHtmlImportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>請貼上完整的 HTML 表格代碼 (&lt;table&gt;...&lt;/table&gt;):</p>
+                <textarea id="modalHtmlInput" placeholder="<table>
+  <thead>
+    <tr>
+      <th>鍵 (Key)</th>
+      <th>值 (Value)</th>
+      <th>類型 (Type)</th>
+      <th>路徑 (Path)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>layout.header.primaryNav</td>
+      <td>主導覽</td>
+      <td>string</td>
+      <td>/layout/header/primaryNav/</td>
+    </tr>
+    <!-- 更多行... -->
+  </tbody>
+</table>"></textarea>
+                <p style="font-size: 0.9rem; color: #7f8c8d; margin-top: 10px;">
+                    <i class="fas fa-info-circle"></i> 提示：請確保 HTML 表格包含正確的結構，包含鍵、值、類型和路徑列。
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelHtmlImport" style="background-color: #95a5a6;">取消</button>
+                <button id="parseModalHtmlToJson">
+                    <i class="fas fa-code"></i> 解析 HTML 並轉換為 JSON
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 範例 JSON 數據
+        const exampleJson = {
+            "layout": {
+                "header": {
+                    "primaryNav": "主導覽",
+                    "language": "語言",
+                    "quickActions": "快速操作",
+                    "booking": "預約取籌",
+                    "survey": "網站調查"
+                },
+                "footer": {
+                    "personalDataStatement": "收集個人資料聲明",
+                    "privacyPolicy": "私隱政策",
+                    "sitemap": "網站地圖",
+                    "accessibility": "無障礙瀏覽",
+                    "copyright": "澳門特別行政區身份證明局 版權所有©{year}",
+                    "contact": {
+                        "title": "聯絡我們",
+                        "headquarter": {
+                            "title": "總辦事處",
+                            "address": "地址﹕澳門南灣大馬路804號中華廣場1樓",
+                            "hotline": "電話﹕(853) 2837 0777、(853) 2837 0888",
+                            "hotlineNote": "（非辦公時間或繁忙時段設有語音留言服務，市民可選擇留言並提供本地聯絡電話，辦公時間內的留言會於當日回覆，非辦公時間的留言會於緊接工作日回覆。如未能提供本地聯絡電話者，請透過本局電郵{email}查詢。）",
+                            "fax": "傳真﹕(853)2837 4300",
+                            "email": "電郵﹕{email}",
+                            "officeHours": "辦公時間﹕週一至週五，上午 9時至下午 6時 （週六、日及政府假期休息）"
+                        },
+                        "morais": {
+                            "title": "慕拉士政府綜合服務中心",
+                            "address": "地址﹕澳門慕拉士大馬路222號地下",
+                            "hotline": "電話﹕(853) 2845 1515",
+                            "fax": "傳真﹕(853) 2845 2211",
+                            "email": "電郵﹕{email}",
+                            "officeHours": "辦公時間﹕週一至週五，上午 9時至下午 6時（週六、日及政府假期休息）",
+                            "serviceDescription": {
+                                "beforeLink": "服務內容﹕請參閱政府綜合服務中心網頁(",
+                                "afterLink": ")"
+                            }
+                        },
+                        "islands": {
+                            "title": "離島政府綜合服務中心",
+                            "address": "地址﹕氹仔哥英布拉街225號3樓",
+                            "hotline": "電話﹕(853) 2842 1212",
+                            "fax": "傳真﹕(853) 8395 4567",
+                            "email": "電郵﹕{email}",
+                            "officeHours": "辦公時間﹕週一至週五，上午 9時至下午6時（週六、日及政府假期休息）",
+                            "serviceDescription": {
+                                "beforeLink": "服務內容﹕請參閱政府綜合服務中心網頁(",
+                                "afterLink": ")"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // 初始化 CodeMirror 編輯器
+        const editor = CodeMirror.fromTextArea(document.getElementById('jsonEditor'), {
+            mode: "javascript",
+            theme: "dracula",
+            lineNumbers: true,
+            lineWrapping: true,
+            autofocus: true,
+            matchBrackets: true,
+            autoCloseBrackets: true
+        });
+        
+        // 設定初始 JSON 內容
+        editor.setValue(JSON.stringify(exampleJson, null, 2));
+        
+        // 全局變數
+        let currentJsonData = exampleJson;
+        let currentTableData = [];
+        let currentTableHtml = '';
+        
+        // DOM 元素
+        const jsonStatus = document.getElementById('jsonStatus');
+        const tableStatus = document.getElementById('tableStatus');
+        const tableContainer = document.getElementById('tableContainer');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const currentPath = document.getElementById('currentPath');
+        const itemCount = document.getElementById('itemCount');
+        const convertToTableBtn = document.getElementById('convertToTable');
+        const convertToJsonBtn = document.getElementById('convertToJson');
+        const resetBtn = document.getElementById('reset');
+        const downloadHtmlBtn = document.getElementById('downloadHtml');
+        const downloadJsonBtn = document.getElementById('downloadJson');
+        const downloadExcelBtn = document.getElementById('downloadExcel');
+        const importHtmlBtn = document.getElementById('importHtml');
+        const parseHtmlToJsonBtn = document.getElementById('parseHtmlToJson');
+        const htmlInput = document.getElementById('htmlInput');
+        const htmlImportModal = document.getElementById('htmlImportModal');
+        const modalHtmlInput = document.getElementById('modalHtmlInput');
+        const closeHtmlImportModal = document.getElementById('closeHtmlImportModal');
+        const cancelHtmlImport = document.getElementById('cancelHtmlImport');
+        const parseModalHtmlToJson = document.getElementById('parseModalHtmlToJson');
+        const exportOptions = document.getElementById('exportOptions');
+        const includeMetadata = document.getElementById('includeMetadata');
+        const includeTypes = document.getElementById('includeTypes');
+        const includePaths = document.getElementById('includePaths');
+        const autoColumnWidth = document.getElementById('autoColumnWidth');
+        const applyExportOptionsBtn = document.getElementById('applyExportOptions');
+        
+        // 選項卡功能
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                
+                // 更新選項卡狀態
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // 顯示對應的內容
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+        
+        // 更新狀態欄
+        function updateStatusBar(path, count) {
+            currentPath.textContent = path;
+            itemCount.textContent = count;
+        }
+        
+        // 顯示錯誤訊息
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.add('show');
+            jsonStatus.textContent = "JSON 錯誤";
+            jsonStatus.style.color = "#e74c3c";
+        }
+        
+        // 隱藏錯誤訊息
+        function hideError() {
+            errorMessage.classList.remove('show');
+            jsonStatus.textContent = "有效 JSON";
+            jsonStatus.style.color = "#2ecc71";
+        }
+        
+        // 驗證 JSON
+        function validateJson(jsonString) {
+            try {
+                JSON.parse(jsonString);
+                hideError();
+                return true;
+            } catch (error) {
+                showError(`JSON 解析錯誤: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // 扁平化 JSON 對象，生成表格數據
+        function flattenJsonForTable(data, parentKey = '', path = '/', result = []) {
+            if (typeof data === 'object' && data !== null) {
+                const isArray = Array.isArray(data);
+                const keys = Object.keys(data);
+                
+                if (keys.length === 0) {
+                    result.push({
+                        key: parentKey || '(空對象)',
+                        value: isArray ? '[]' : '{}',
+                        type: isArray ? 'array' : 'object',
+                        path: path
+                    });
+                } else {
+                    for (const key of keys) {
+                        const newKey = parentKey ? `${parentKey}.${key}` : key;
+                        const newPath = `${path}${isArray ? `[${key}]` : key}/`;
+                        const value = data[key];
+                        
+                        if (typeof value === 'object' && value !== null) {
+                            if (Array.isArray(value)) {
+                                result.push({
+                                    key: newKey,
+                                    value: `[陣列，${value.length} 個項目]`,
+                                    type: 'array',
+                                    path: newPath
+                                });
+                            } else {
+                                result.push({
+                                    key: newKey,
+                                    value: '{物件}',
+                                    type: 'object',
+                                    path: newPath
+                                });
+                            }
+                            // 遞歸處理嵌套對象
+                            flattenJsonForTable(value, newKey, newPath, result);
+                        } else {
+                            // 基本類型
+                            result.push({
+                                key: newKey,
+                                value: value,
+                                type: typeof value,
+                                path: newPath
+                            });
+                        }
+                    }
+                }
+            } else {
+                // 基本類型（非對象）
+                result.push({
+                    key: parentKey || '(根)',
+                    value: data,
+                    type: typeof data,
+                    path: path
+                });
+            }
+            
+            return result;
+        }
+        
+        // 根據數據類型返回對應的 CSS 類名
+        function getValueClass(value, type) {
+            if (value === null) return 'null-cell';
+            if (type === 'object') return 'object-cell';
+            if (type === 'string') return 'string-cell';
+            if (type === 'boolean') return 'boolean-cell';
+            if (type === 'number') return 'number-cell';
+            return '';
+        }
+        
+        // 格式化值顯示
+        function formatValue(value, type) {
+            if (value === null) return 'null';
+            if (value === undefined) return 'undefined';
+            if (type === 'boolean') return value ? 'true' : 'false';
+            if (type === 'string') return `"${value}"`;
+            return value;
+        }
+        
+        // 從格式化值解析原始值
+        function parseFormattedValue(formattedValue, type) {
+            if (formattedValue === 'null') return null;
+            if (formattedValue === 'undefined') return undefined;
+            if (type === 'boolean') return formattedValue === 'true';
+            if (type === 'number') return Number(formattedValue);
+            if (type === 'string') {
+                // 移除引號
+                if ((formattedValue.startsWith('"') && formattedValue.endsWith('"')) ||
+                    (formattedValue.startsWith("'") && formattedValue.endsWith("'"))) {
+                    return formattedValue.slice(1, -1);
+                }
+            }
+            return formattedValue;
+        }
+        
+        // 生成完整的 HTML 文檔
+        function generateCompleteHtmlDocument(tableHtml) {
+            const timestamp = new Date().toLocaleString('zh-TW');
+            return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON 轉換表格 - ${timestamp}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .info {
+            background-color: #e8f4fc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        th {
+            background-color: #2c3e50;
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+            font-weight: 600;
+            border-right: 1px solid #34495e;
+        }
+        
+        th:last-child {
+            border-right: none;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        tr:hover {
+            background-color: #f1f8ff;
+        }
+        
+        .object-cell {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .string-cell {
+            color: #27ae60;
+        }
+        
+        .null-cell {
+            color: #95a5a6;
+            font-style: italic;
+        }
+        
+        .boolean-cell {
+            color: #f39c12;
+            font-weight: 600;
+        }
+        
+        .number-cell {
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        .type-badge {
+            background-color: #ecf0f1;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #2c3e50;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>JSON 數據表格</h1>
+        <p>由 JSON ↔ HTML Table 轉換工具生成</p>
+        <p>生成時間: ${timestamp}</p>
+    </header>
+    
+    <div class="info">
+        <p><strong>說明：</strong>此表格由 JSON 數據轉換生成，顯示了 JSON 結構中的所有鍵值對及其類型。</p>
+        <p><strong>總條目數：</strong> ${currentTableData.length}</p>
+    </div>
+    
+    ${tableHtml}
+    
+    <footer>
+        <p>JSON ↔ HTML Table 轉換工具 &copy; 2023 | 支援複雜JSON結構雙向轉換</p>
+    </footer>
+</body>
+</html>`;
+        }
+        
+        // 將 JSON 轉換為 HTML 表格
+        function convertJsonToTable() {
+            const jsonString = editor.getValue();
+            
+            if (!validateJson(jsonString)) {
+                return;
+            }
+            
+            try {
+                const jsonData = JSON.parse(jsonString);
+                currentJsonData = jsonData;
+                
+                // 扁平化 JSON 以生成表格數據
+                currentTableData = flattenJsonForTable(jsonData);
+                
+                // 生成 HTML 表格
+                let html = '<table>';
+                html += '<thead><tr><th>鍵 (Key)</th><th>值 (Value)</th><th>類型 (Type)</th><th>路徑 (Path)</th></tr></thead>';
+                html += '<tbody>';
+                
+                currentTableData.forEach(item => {
+                    const valueClass = getValueClass(item.value, item.type);
+                    const formattedValue = formatValue(item.value, item.type);
+                    
+                    html += `<tr>
+                        <td><strong>${item.key}</strong></td>
+                        <td class="${valueClass}">${formattedValue}</td>
+                        <td><span class="type-badge">${item.type}</span></td>
+                        <td><code>${item.path}</code></td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                
+                // 保存表格HTML用於下載
+                currentTableHtml = html;
+                
+                // 更新預覽
+                tableContainer.innerHTML = html;
+                tableStatus.textContent = `已載入 ${currentTableData.length} 行`;
+                tableStatus.style.color = "#27ae60";
+                
+                updateStatusBar('/', currentTableData.length);
+                
+            } catch (error) {
+                showError(`轉換錯誤: ${error.message}`);
+            }
+        }
+        
+        // 從表格數據重建 JSON
+        function convertTableToJson() {
+            if (currentTableData.length === 0) {
+                showError("沒有表格數據可以轉換為 JSON");
+                return;
+            }
+            
+            try {
+                // 從扁平化數據重建 JSON
+                const reconstructedJson = reconstructJsonFromFlatData(currentTableData);
+                
+                // 更新編輯器
+                editor.setValue(JSON.stringify(reconstructedJson, null, 2));
+                currentJsonData = reconstructedJson;
+                
+                // 更新狀態
+                jsonStatus.textContent = "已從表格重建";
+                jsonStatus.style.color = "#9b59b6";
+                tableStatus.textContent = "已轉換為 JSON";
+                tableStatus.style.color = "#9b59b6";
+                
+                hideError();
+                
+            } catch (error) {
+                showError(`重建 JSON 錯誤: ${error.message}`);
+            }
+        }
+        
+        // 從扁平化數據重建 JSON
+        function reconstructJsonFromFlatData(flatData) {
+            const result = {};
+            
+            flatData.forEach(item => {
+                // 跳過根項目
+                if (item.key === '(根)') return;
+                
+                const keys = item.key.split('.');
+                let current = result;
+                
+                // 遍歷路徑創建嵌套對象
+                for (let i = 0; i < keys.length - 1; i++) {
+                    const key = keys[i];
+                    
+                    if (!current[key]) {
+                        // 檢查下一個鍵是否為數字（表示數組）
+                        const nextKey = keys[i + 1];
+                        if (!isNaN(parseInt(nextKey)) && parseInt(nextKey).toString() === nextKey) {
+                            current[key] = [];
+                        } else {
+                            current[key] = {};
+                        }
+                    }
+                    
+                    current = current[key];
+                }
+                
+                // 設置值
+                const lastKey = keys[keys.length - 1];
+                
+                // 處理特殊類型
+                if (item.type === 'null') {
+                    current[lastKey] = null;
+                } else if (item.type === 'boolean') {
+                    current[lastKey] = item.value === 'true';
+                } else if (item.type === 'number') {
+                    current[lastKey] = Number(item.value);
+                } else if (item.type === 'object' || item.type === 'array') {
+                    // 對於對象和數組，我們已經在遍歷中創建了結構
+                    // 這裡不需要做額外處理
+                } else {
+                    // 字符串類型，移除引號
+                    current[lastKey] = item.value.replace(/^"(.*)"$/, '$1');
+                }
+            });
+            
+            return result;
+        }
+        
+        // 解析 HTML 表格並轉換為 JSON
+        function parseHtmlTableToJson(htmlString) {
+            try {
+                // 創建臨時 DOM 元素來解析 HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlString;
+                
+                // 查找表格元素
+                const table = tempDiv.querySelector('table');
+                if (!table) {
+                    throw new Error('未找到有效的 HTML 表格元素');
+                }
+                
+                // 解析表格數據
+                const rows = table.querySelectorAll('tr');
+                if (rows.length < 2) {
+                    throw new Error('表格數據不足，至少需要表頭和一行數據');
+                }
+                
+                // 解析表頭
+                const headerRow = rows[0];
+                const headerCells = headerRow.querySelectorAll('th, td');
+                const headers = Array.from(headerCells).map(cell => cell.textContent.trim());
+                
+                // 檢查必需的列
+                const requiredColumns = ['鍵 (Key)', '值 (Value)', '類型 (Type)', '路徑 (Path)'];
+                const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+                if (missingColumns.length > 0) {
+                    throw new Error(`缺少必需的列: ${missingColumns.join(', ')}。請確保表格包含鍵、值、類型和路徑列。`);
+                }
+                
+                // 獲取列索引
+                const keyIndex = headers.indexOf('鍵 (Key)');
+                const valueIndex = headers.indexOf('值 (Value)');
+                const typeIndex = headers.indexOf('類型 (Type)');
+                const pathIndex = headers.indexOf('路徑 (Path)');
+                
+                // 解析數據行
+                const tableData = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const cells = row.querySelectorAll('td');
+                    
+                    if (cells.length >= 4) {
+                        const key = cells[keyIndex].textContent.trim();
+                        const value = cells[valueIndex].textContent.trim();
+                        const type = cells[typeIndex].textContent.trim();
+                        const path = cells[pathIndex].textContent.trim();
+                        
+                        // 跳過空鍵
+                        if (!key || key === '(根)') continue;
+                        
+                        tableData.push({
+                            key: key,
+                            value: parseFormattedValue(value, type),
+                            type: type,
+                            path: path
+                        });
+                    }
+                }
+                
+                if (tableData.length === 0) {
+                    throw new Error('未找到有效的表格數據');
+                }
+                
+                // 保存表格數據
+                currentTableData = tableData;
+                
+                // 從表格數據重建 JSON
+                const reconstructedJson = reconstructJsonFromFlatData(tableData);
+                
+                // 更新編輯器
+                editor.setValue(JSON.stringify(reconstructedJson, null, 2));
+                currentJsonData = reconstructedJson;
+                
+                // 更新表格預覽
+                convertJsonToTable();
+                
+                // 更新狀態
+                jsonStatus.textContent = "已從 HTML 解析";
+                jsonStatus.style.color = "#8e44ad";
+                tableStatus.textContent = `已載入 ${tableData.length} 行`;
+                tableStatus.style.color = "#27ae60";
+                
+                // 切換回預覽選項卡
+                document.querySelector('.tab[data-tab="preview"]').click();
+                
+                hideError();
+                
+                return reconstructedJson;
+                
+            } catch (error) {
+                showError(`解析 HTML 表格失敗: ${error.message}`);
+                return null;
+            }
+        }
+        
+        // 重置為範例
+        function resetToExample() {
+            editor.setValue(JSON.stringify(exampleJson, null, 2));
+            currentJsonData = exampleJson;
+            tableContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 40px 20px;">點擊「轉換為 HTML 表格」按鈕以預覽 JSON 數據</p>';
+            currentTableHtml = '';
+            
+            jsonStatus.textContent = "已重置";
+            jsonStatus.style.color = "#3498db";
+            tableStatus.textContent = "就緒";
+            tableStatus.style.color = "";
+            
+            updateStatusBar('/', 0);
+            hideError();
+        }
+        
+        // 下載 HTML 文件
+        function downloadHtml() {
+            if (!currentTableHtml || currentTableHtml === '') {
+                showError("沒有可下載的 HTML 表格內容，請先轉換 JSON 為表格");
+                return;
+            }
+            
+            try {
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `json-table-${timestamp}.html`;
+                
+                // 生成完整的HTML文檔
+                const completeHtml = generateCompleteHtmlDocument(currentTableHtml);
+                
+                // 創建 Blob 和下載連結
+                const blob = new Blob([completeHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // 更新狀態
+                tableStatus.textContent = `已下載 ${filename}`;
+                tableStatus.style.color = "#f39c12";
+                
+                setTimeout(() => {
+                    tableStatus.textContent = `已載入 ${currentTableData.length} 行`;
+                    tableStatus.style.color = "#27ae60";
+                }, 2000);
+                
+            } catch (error) {
+                showError(`下載 HTML 失敗: ${error.message}`);
+            }
+        }
+        
+        // 下載 JSON 文件
+        function downloadJson() {
+            const jsonString = editor.getValue();
+            
+            if (!validateJson(jsonString)) {
+                return;
+            }
+            
+            try {
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `json-data-${timestamp}.json`;
+                
+                // 創建 Blob 和下載連結
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // 更新狀態
+                jsonStatus.textContent = `已下載 ${filename}`;
+                jsonStatus.style.color = "#16a085";
+                
+                setTimeout(() => {
+                    jsonStatus.textContent = "有效 JSON";
+                    jsonStatus.style.color = "#2ecc71";
+                }, 2000);
+                
+            } catch (error) {
+                showError(`下載 JSON 失敗: ${error.message}`);
+            }
+        }
+        
+        // 下載 Excel 文件
+        function downloadExcel() {
+            if (currentTableData.length === 0) {
+                showError("沒有表格數據可以下載為 Excel，請先轉換 JSON 為表格");
+                return;
+            }
+            
+            // 顯示匯出選項
+            exportOptions.style.display = 'block';
+        }
+        
+        // 應用 Excel 匯出選項並下載
+        function applyExportOptionsAndDownload() {
+            try {
+                // 創建工作簿
+                const wb = XLSX.utils.book_new();
+                
+                // 準備工作表數據
+                const wsData = [];
+                
+                // 添加元數據行（如果選擇）
+                if (includeMetadata.checked) {
+                    wsData.push(['JSON 數據表格']);
+                    wsData.push(['由 JSON ↔ HTML Table 轉換工具生成']);
+                    wsData.push(['生成時間:', new Date().toLocaleString('zh-TW')]);
+                    wsData.push(['總條目數:', currentTableData.length]);
+                    wsData.push([]); // 空行
+                }
+                
+                // 添加表頭
+                const headers = ['鍵 (Key)', '值 (Value)'];
+                if (includeTypes.checked) headers.push('類型 (Type)');
+                if (includePaths.checked) headers.push('路徑 (Path)');
+                wsData.push(headers);
+                
+                // 添加數據行
+                currentTableData.forEach(item => {
+                    const row = [item.key, formatValue(item.value, item.type)];
+                    if (includeTypes.checked) row.push(item.type);
+                    if (includePaths.checked) row.push(item.path);
+                    wsData.push(row);
+                });
+                
+                // 創建工作表
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                
+                // 設置列寬（如果選擇）
+                if (autoColumnWidth.checked) {
+                    const colWidths = [];
+                    
+                    // 計算每列的最大寬度
+                    for (let col = 0; col < wsData[0].length; col++) {
+                        let maxLength = 0;
+                        for (let row = 0; row < wsData.length; row++) {
+                            const cellValue = wsData[row][col];
+                            if (cellValue) {
+                                const length = String(cellValue).length;
+                                if (length > maxLength) maxLength = length;
+                            }
+                        }
+                        // 設置列寬，最小10，最大50
+                        colWidths.push({ wch: Math.min(Math.max(maxLength, 10), 50) });
+                    }
+                    
+                    ws['!cols'] = colWidths;
+                }
+                
+                // 設置工作表名稱
+                const timestamp = new Date().toISOString().slice(0, 10);
+                const sheetName = `JSON數據_${timestamp}`;
+                
+                // 將工作表添加到工作簿
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                
+                // 生成文件名
+                const excelTimestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `json-data-${excelTimestamp}.xlsx`;
+                
+                // 寫入文件並下載
+                XLSX.writeFile(wb, filename);
+                
+                // 更新狀態
+                tableStatus.textContent = `已下載 ${filename}`;
+                tableStatus.style.color = "#1abc9c";
+                
+                setTimeout(() => {
+                    tableStatus.textContent = `已載入 ${currentTableData.length} 行`;
+                    tableStatus.style.color = "#27ae60";
+                }, 2000);
+                
+                // 隱藏匯出選項
+                exportOptions.style.display = 'none';
+                
+            } catch (error) {
+                showError(`下載 Excel 失敗: ${error.message}`);
+            }
+        }
+        
+        // 打開 HTML 匯入模態框
+        function openHtmlImportModal() {
+            htmlImportModal.style.display = 'flex';
+            modalHtmlInput.focus();
+        }
+        
+        // 關閉 HTML 匯入模態框
+        function closeHtmlImportModalFunc() {
+            htmlImportModal.style.display = 'none';
+            modalHtmlInput.value = '';
+        }
+        
+        // 從模態框解析 HTML
+        function parseHtmlFromModal() {
+            const htmlString = modalHtmlInput.value.trim();
+            if (!htmlString) {
+                showError("請輸入 HTML 表格內容");
+                return;
+            }
+            
+            const result = parseHtmlTableToJson(htmlString);
+            if (result) {
+                closeHtmlImportModalFunc();
+            }
+        }
+        
+        // 從輸入區域解析 HTML
+        function parseHtmlFromInputArea() {
+            const htmlString = htmlInput.value.trim();
+            if (!htmlString) {
+                showError("請輸入 HTML 表格內容");
+                return;
+            }
+            
+            parseHtmlTableToJson(htmlString);
+        }
+        
+        // 事件監聽器
+        convertToTableBtn.addEventListener('click', convertJsonToTable);
+        convertToJsonBtn.addEventListener('click', convertTableToJson);
+        resetBtn.addEventListener('click', resetToExample);
+        downloadHtmlBtn.addEventListener('click', downloadHtml);
+        downloadJsonBtn.addEventListener('click', downloadJson);
+        downloadExcelBtn.addEventListener('click', downloadExcel);
+        importHtmlBtn.addEventListener('click', openHtmlImportModal);
+        parseHtmlToJsonBtn.addEventListener('click', parseHtmlFromInputArea);
+        closeHtmlImportModal.addEventListener('click', closeHtmlImportModalFunc);
+        cancelHtmlImport.addEventListener('click', closeHtmlImportModalFunc);
+        parseModalHtmlToJson.addEventListener('click', parseHtmlFromModal);
+        applyExportOptionsBtn.addEventListener('click', applyExportOptionsAndDownload);
+        
+        // 點擊模態框外部關閉
+        window.addEventListener('click', (event) => {
+            if (event.target === htmlImportModal) {
+                closeHtmlImportModalFunc();
+            }
+        });
+        
+        // 初始狀態
+        updateStatusBar('/', 0);
+        
+        // 初始轉換
+        setTimeout(() => {
+            convertJsonToTable();
+        }, 500);
+    </script>
+</body>
+</html>
